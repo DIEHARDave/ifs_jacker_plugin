@@ -85,7 +85,8 @@ of my fork (based on v0.0.26), meant as a pull request to Kiln OS:
 - **HelixScreen** shows 4 IFS lanes: its AD5X IFS backend has a fixed
   `kNumPorts` of 4. Slots 5-16 work from the slicer (`T4`+), the console,
   Mainsail and Fluidd, but not on the touch screen's lane view.
-- **KILN_AFCLite** and **KILN_AutoColor** assume 4 slots too.
+- **KILN_AutoColor** assumes 4 slots too. **KILN_AFC** defines lanes 1-4;
+  add `[AFC_lane laneN]` sections (`unit: IFS:N`) in local.cfg for more.
 - Commands without a channel (`F15` reset, `F112` stop, `F42` current) reach
   only the unit used last (Jacker behaviour): `IFS_SET_CURRENT` sets one
   unit's motors.
