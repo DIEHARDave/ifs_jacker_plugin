@@ -124,7 +124,7 @@ class Emulator:
         self.proc.terminate()
         self.proc.wait()
 
-PROBE_OBJECTS = ("ifs, ifs_materials, kiln_ifsjacker, print_stats, idle_timeout, "
+PROBE_OBJECTS = ("ifs, ifs_materials, ifsjacker_kiln, print_stats, idle_timeout, "
                  "temperature_sensor ifs_box, fan_generic rear")
 
 class Klippy:
@@ -184,7 +184,7 @@ def variables():
     return eval(m.group(1)) if m else None
 
 PLUGIN_CFG = """
-[kiln_ifsjacker]
+[ifsjacker_kiln]
 
 [temperature_sensor ifs_box]
 sensor_type: ifs_jacker
@@ -192,7 +192,7 @@ peripheral: 0
 min_temp: -50
 max_temp: 120
 
-[kiln_ifsjacker_fan rear]
+[ifsjacker_fan_kiln rear]
 peripheral: 1
 """
 
@@ -217,8 +217,8 @@ def run_jacker(args):
               st['loaded_channels'])
         check("tool map T0-T7", sorted(st['tool_map'], key=int)
               == [str(t) for t in range(8)], st['tool_map'])
-        jk = wait_for(lambda: api.query("kiln_ifsjacker")["kiln_ifsjacker"]
-                      if api.query("kiln_ifsjacker")["kiln_ifsjacker"]
+        jk = wait_for(lambda: api.query("ifsjacker_kiln")["ifsjacker_kiln"]
+                      if api.query("ifsjacker_kiln")["ifsjacker_kiln"]
                       ["present"] else None, 20)
         check("plugin detects the Jacker (Z2)", jk and jk['present']
               and jk['version'] == "3.2.1" and jk['units'] == 2,
@@ -393,7 +393,7 @@ def run_stock(args):
         check("plugin never sends Z2 to a plain IFS",
               not any(c.startswith("Z") for c in cmds),
               [c for c in cmds if c.startswith("Z")])
-        jk = api.query("kiln_ifsjacker")["kiln_ifsjacker"]
+        jk = api.query("ifsjacker_kiln")["ifsjacker_kiln"]
         check("plugin: not present", not jk['present'], jk['message'])
         ok, err, out = api.gcode("T1")
         check("T1 swap works", ok and api.query("ifs")['ifs']['channel'] == 2,
@@ -482,7 +482,7 @@ def main():
     links = {"ifs.py": os.path.join(os.path.expanduser(args.kiln), "klipper",
                                     "extras", "ifs.py"),
              "kiln_test_probe.py": os.path.join(HERE, "kiln_test_probe.py")}
-    for name in ("kiln_ifsjacker.py", "kiln_ifsjacker_fan.py"):
+    for name in ("ifsjacker_kiln.py", "ifsjacker_fan_kiln.py"):
         links[name] = os.path.join(PLUGIN, "extras", name)
     for name, target in links.items():
         path = os.path.join(extras, name)

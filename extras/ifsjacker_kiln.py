@@ -1,4 +1,4 @@
-# IFS Jacker support for Kiln OS ([kiln_ifsjacker])
+# IFS Jacker support for Kiln OS ([ifsjacker_kiln])
 #
 # The IFS Jacker (github.com/ninjamida/ifs-jacker) chains two to four IFS
 # units on the printer's IFS link. Kiln's ifs.py drives its channels itself
@@ -80,7 +80,7 @@ class KilnIfsJacker:
             self.message = ("this Kiln OS drives 4 IFS channels only; the "
                             "IFS Jacker needs ifs.py with the channels "
                             "option (see README)")
-            logging.warning("kiln_ifsjacker: %s", self.message)
+            logging.warning("ifsjacker_kiln: %s", self.message)
             return
         self.reactor.register_timer(self._watch, self.reactor.NOW)
     # Detection
@@ -92,7 +92,7 @@ class KilnIfsJacker:
         link drops. Then follow the peripheral fields of each F13."""
         if not self._link_up():
             if self.present or self.tries:
-                logging.info("kiln_ifsjacker: IFS link down or no "
+                logging.info("ifsjacker_kiln: IFS link down or no "
                              "channel_count, Jacker state cleared")
             self.present = False
             self.tries = 0
@@ -120,7 +120,7 @@ class KilnIfsJacker:
             reply = self._request("Z2")
         except Exception as e:
             self.message = "no Z2 reply (%s)" % (e,)
-            logging.info("kiln_ifsjacker: %s", self.message)
+            logging.info("ifsjacker_kiln: %s", self.message)
             return False
         info = parse_z2(reply)
         if not info.get('software', '').startswith("IFS Jacker"):
@@ -136,7 +136,7 @@ class KilnIfsJacker:
         if version < MIN_VERSION:
             self.message += ("; firmware %s is too old for peripherals "
                              "(3.0 or newer)" % (info.get('version'),))
-        logging.info("kiln_ifsjacker: %s", self.message)
+        logging.info("ifsjacker_kiln: %s", self.message)
         count = info.get('peripheral_count') or 0
         self.peripherals = [{} for i in range(count)]
         if count and version >= MIN_VERSION:
@@ -146,7 +146,7 @@ class KilnIfsJacker:
         try:
             reply = self._request("Z3")
         except Exception as e:
-            logging.info("kiln_ifsjacker: Z3 failed: %s", e)
+            logging.info("ifsjacker_kiln: Z3 failed: %s", e)
             return
         for idx, name in re.findall(r'peripheral_(\d+):\s*"([^"]*)"', reply):
             self._peripheral(int(idx))['name'] = name
@@ -259,5 +259,26 @@ class JackerTemperature:
     def get_report_time_delta(self):
         return self.report_time
 
+def adopt_legacy_section(config, old):
+    """Options from a section of the name before the rename (Kiln OS 1.0
+    keeps kiln_ names for itself), so a user's own [kiln_ifsjacker] in local.cfg
+    still applies instead of stopping Klipper with an unknown section."""
+    if not config.has_section(old):
+        return
+    fc = config.fileconfig
+    new = config.get_name()
+    legacy = config.getsection(old)
+    for opt in fc.options(old):
+        fc.set(new, opt, fc.get(old, opt))
+        legacy.get(opt)  # marks the old option as used
+    msg = "[%s] is now [%s]: rename the section in your config" % (old, new)
+    logging.warning(msg)
+    try:
+        config.get_printer().lookup_object('configfile').runtime_warning(msg)
+    except Exception:
+        pass
+
+
 def load_config(config):
+    adopt_legacy_section(config, 'kiln_ifsjacker')
     return KilnIfsJacker(config)

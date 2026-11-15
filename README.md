@@ -28,12 +28,12 @@ parts:
 - **Detection**: `Z2` once the IFS link reports a `channel_count` (a plain
   IFS never does, so it is never sent `Z2`; the Z-Mod plugin's "plain IFS
   disconnects three times at start-up" doesn't happen here). Firmware
-  version, unit and channel count in `printer.kiln_ifsjacker`.
+  version, unit and channel count in `printer.ifsjacker_kiln`.
 - **Peripherals** (Jacker firmware 3.0+): names (`Z3`), values from every
   status reply (`p<n>_<field>`) and `Z4`, commands (`Z5`).
 - **`sensor_type: ifs_jacker`**: a Jacker temperature peripheral as a Klipper
   `temperature_sensor` (Mainsail, Fluidd, HelixScreen show it).
-- **`[kiln_ifsjacker_fan name]`**: a Jacker PWM output as a fan,
+- **`[ifsjacker_fan_kiln name]`**: a Jacker PWM output as a fan,
   `SET_FAN_SPEED FAN=name SPEED=0.5`.
 
 | Command | |
@@ -43,7 +43,7 @@ parts:
 | `IFS_JACKER_PERIPHERALS` | Each peripheral's name and values |
 | `IFS_JACKER_PERIPHERAL PERIPHERAL= COMMAND= [PARAM1=] [PARAM2=]` | Raw `Z5` to one peripheral |
 
-`printer.kiln_ifsjacker`: `present`, `version`, `units`, `channel_count`,
+`printer.ifsjacker_kiln`: `present`, `version`, `units`, `channel_count`,
 `peripherals` (per index: `name` and its fields), `message`.
 
 ## Install
@@ -79,6 +79,21 @@ of my fork (based on v0.0.26), meant as a pull request to Kiln OS:
   the selected channel.
 - F21's four counters stored at the active unit's slots.
 - A stock IFS behaves as before: 4 channels, decimal lengths, `T4` refused.
+
+## Renamed for Kiln OS 1.0
+
+Since v0.1.0-rc1, Kiln OS keeps names that start with `kiln_` or
+`ad5x_` for itself and refuses plugins that use them. This plugin's
+Klipper section and status object are now `ifsjacker_kiln` (was `kiln_ifsjacker`),
+and its Software Updates entry is `ifsjacker-kiln` (was `kiln-ifsjacker`).
+
+A `[kiln_ifsjacker]` section of your own in `local.cfg` still works: its
+options are used for `[ifsjacker_kiln]`, with a warning in Fluidd/Mainsail to
+rename it. Macros or dashboards that read `printer.kiln_ifsjacker` need
+`printer.ifsjacker_kiln`.
+
+`[kiln_ifsjacker_fan name]` sections must be renamed by hand to
+`[ifsjacker_fan_kiln name]`: Klipper stops at the old name.
 
 ## Known limits
 

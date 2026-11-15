@@ -1,11 +1,11 @@
-# An IFS Jacker PWM peripheral as a Klipper fan ([kiln_ifsjacker_fan name])
+# An IFS Jacker PWM peripheral as a Klipper fan ([ifsjacker_fan_kiln name])
 #
-#   [kiln_ifsjacker_fan rear]
+#   [ifsjacker_fan_kiln rear]
 #   peripheral: 1
 #
 # SET_FAN_SPEED FAN=rear SPEED=0.5 sends Z5 C<peripheral> F3 L<0-65535>
 # (the Jacker's pwm_output peripheral); printer['fan_generic rear'].speed is
-# its reported power. Needs [kiln_ifsjacker].
+# its reported power. Needs [ifsjacker_kiln].
 #
 # This file may be distributed under the terms of the GNU GPLv3 license.
 import re
@@ -17,7 +17,7 @@ class KilnIfsJackerFan:
         self.printer = config.get_printer()
         self.name = config.get_name().split()[-1]
         self.index = config.getint('peripheral', minval=0)
-        self.jacker = self.printer.load_object(config, 'kiln_ifsjacker')
+        self.jacker = self.printer.load_object(config, 'ifsjacker_kiln')
         self.printer.add_object("fan_generic " + self.name, self)
         gcode = self.printer.lookup_object('gcode')
         gcode.register_mux_command("SET_FAN_SPEED", "FAN", self.name,
