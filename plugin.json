@@ -1,7 +1,7 @@
 {
   "name": "ifsjacker",
   "description": "IFS Jacker (2-4 IFS units, up to 16 channels): detection, firmware version, peripherals as temperature sensors and fans",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "author": "DIEHARDave",
   "url": "https://github.com/DIEHARDave/ifs_jacker_plugin/tree/kiln",
   "requires_os": "1.4",
