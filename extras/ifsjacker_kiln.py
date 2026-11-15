@@ -359,11 +359,19 @@ def migrate_legacy_sections(config):
         printer.lookup_object('configfile').runtime_warning(msg)
     except Exception:
         pass
-    def ready():
+    def say(eventtime):
         try:
             printer.lookup_object('gcode').respond_raw('!! ' + msg)
         except Exception:
             logging.exception("%s: rename notice", LEGACY_PLUGIN)
+        return printer.get_reactor().NEVER
+    def ready():
+        # Moonraker subscribes to the console a little after klippy:ready, so
+        # a line sent at once only reaches klippy.log: send it twice, later
+        reactor = printer.get_reactor()
+        now = reactor.monotonic()
+        for delay in (15., 60.):
+            reactor.register_timer(say, now + delay)
     try:
         printer.register_event_handler('klippy:ready', ready)
     except Exception:
