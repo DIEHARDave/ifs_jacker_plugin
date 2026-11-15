@@ -87,13 +87,14 @@ Since v0.1.0-rc1, Kiln OS keeps names that start with `kiln_` or
 Klipper section and status object are now `ifsjacker_kiln` (was `kiln_ifsjacker`),
 and its Software Updates entry is `ifsjacker-kiln` (was `kiln-ifsjacker`).
 
-A `[kiln_ifsjacker]` section of your own in `local.cfg` still works: its
-options are used for `[ifsjacker_kiln]`, with a warning in Fluidd/Mainsail to
-rename it. Macros or dashboards that read `printer.kiln_ifsjacker` need
-`printer.ifsjacker_kiln`.
-
-`[kiln_ifsjacker_fan name]` sections must be renamed by hand to
-`[ifsjacker_fan_kiln name]`: Klipper stops at the old name.
+Nothing to do by hand: at the first start after the update, the plugin
+renames `[kiln_ifsjacker]` and `[kiln_ifsjacker_fan name]` in your config files (the `.cfg` files in the
+config folder; a `.before-rename` copy of each changed file is kept),
+uses the old settings for that start, and shows a red ⚠️🚨 line in the
+console and a warning in Fluidd/Mainsail. Reboot the printer (or
+`RESTART` Klipper) when you see it. If a file can't be changed, the
+message says to rename the section by hand. Macros or dashboards that
+read `printer.kiln_ifsjacker` need `printer.ifsjacker_kiln`.
 
 ## Known limits
 

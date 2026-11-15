@@ -259,26 +259,117 @@ class JackerTemperature:
     def get_report_time_delta(self):
         return self.report_time
 
-def adopt_legacy_section(config, old):
-    """Options from a section of the name before the rename (Kiln OS 1.0
-    keeps kiln_ names for itself), so a user's own [kiln_ifsjacker] in local.cfg
-    still applies instead of stopping Klipper with an unknown section."""
-    if not config.has_section(old):
-        return
+# Kiln OS 1.0 keeps kiln_ names for itself (v0.1.0-rc1 on), so this plugin's
+# sections were renamed. A user config still naming the old ones is fixed
+# here at the first start that sees them: the old options are used for this
+# start, the section headers in the config folder's .cfg files are renamed
+# (a .before-rename copy of each changed file is kept), and a red console
+# line plus a warning in Fluidd/Mainsail ask for a reboot.
+LEGACY_PLUGIN = 'KILN_IFSJacker'
+LEGACY_SECTIONS = {'kiln_ifsjacker': 'ifsjacker_kiln', 'kiln_ifsjacker_fan': 'ifsjacker_fan_kiln'}
+
+
+def _renamed(section):
+    """The new name for an old section name ("kiln_x" or "kiln_x name"),
+    None for any other section."""
+    head, _, rest = section.strip().partition(' ')
+    new = LEGACY_SECTIONS.get(head.lower())
+    if new is None:
+        return None
+    rest = rest.strip()
+    return new + (' ' + rest if rest else '')
+
+
+def _rename_in_files(cfg_file):
+    """Renames the old section headers in the .cfg files of cfg_file's
+    folder (and below; links to folders are not followed). Returns the
+    changed files (relative paths) and the errors."""
+    import os, re, shutil
+    olds = sorted(LEGACY_SECTIONS, key=len, reverse=True)
+    pat = re.compile(r'^(\s*(?:#\*#\s*)?\[\s*)(%s)((?:\s+[^\]]*?)?)(\s*\])'
+                     % '|'.join(map(re.escape, olds)), re.I | re.M)
+    def sub(m):
+        return m.group(1) + LEGACY_SECTIONS[m.group(2).lower()] + m.group(3) + m.group(4)
+    root = os.path.dirname(os.path.abspath(cfg_file))
+    changed, errors = [], []
+    for dirpath, dirs, files in os.walk(root):
+        dirs[:] = [d for d in dirs if not d.startswith('.')]
+        for name in files:
+            if not name.endswith('.cfg'):
+                continue
+            path = os.path.join(dirpath, name)
+            try:
+                with open(path, encoding='utf-8', errors='surrogateescape',
+                          newline='') as f:
+                    text = f.read()
+                new_text = pat.sub(sub, text)
+                if new_text == text:
+                    continue
+                backup = path + '.before-rename'
+                if not os.path.exists(backup):
+                    shutil.copy2(path, backup)
+                tmp = path + '.renaming'
+                with open(tmp, 'w', encoding='utf-8', errors='surrogateescape',
+                          newline='') as f:
+                    f.write(new_text)
+                shutil.copymode(path, tmp)
+                os.replace(tmp, path)
+                changed.append(os.path.relpath(path, root))
+            except OSError as e:
+                errors.append("%s: %s" % (path, e))
+    return changed, errors
+
+
+def migrate_legacy_sections(config):
+    import logging
     fc = config.fileconfig
-    new = config.get_name()
-    legacy = config.getsection(old)
-    for opt in fc.options(old):
-        fc.set(new, opt, fc.get(old, opt))
-        legacy.get(opt)  # marks the old option as used
-    msg = "[%s] is now [%s]: rename the section in your config" % (old, new)
+    found = [(s, _renamed(s)) for s in fc.sections() if _renamed(s)]
+    if not found:
+        return
+    printer = config.get_printer()
+    me = config.get_name().lower()
+    for old, new in found:
+        legacy = config.getsection(old)
+        options = fc.options(old)
+        for opt in options:
+            if new.lower() == me:
+                fc.set(config.get_name(), opt, fc.get(old, opt))
+            legacy.get(opt)  # marks it used: no "not a valid section" stop
+        if not options:
+            config.access_tracking[(old.lower(), '__renamed__')] = 1
+    pairs = ", ".join("[%s] \u2192 [%s]" % p for p in found)
+    try:
+        cfg_file = printer.get_start_args().get('config_file')
+    except Exception:
+        cfg_file = None
+    changed, errors = _rename_in_files(cfg_file) if cfg_file else ([], [])
+    if changed and not errors:
+        msg = ("\u26a0\ufe0f\U0001f6a8 %s: Kiln OS 1.0 keeps kiln_ names for "
+               "itself, so these sections were RENAMED in %s: %s. REBOOT the "
+               "printer now (or RESTART Klipper) to use the new names. "
+               "\U0001f6a8\u26a0\ufe0f" % (LEGACY_PLUGIN, ", ".join(changed), pairs))
+    else:
+        msg = ("\u26a0\ufe0f\U0001f6a8 %s: Kiln OS 1.0 keeps kiln_ names for "
+               "itself. Rename these sections in your config BY HAND: %s, then "
+               "REBOOT the printer (or RESTART Klipper).%s \U0001f6a8\u26a0\ufe0f"
+               % (LEGACY_PLUGIN, pairs,
+                  (" Could not change: " + "; ".join(errors)) if errors else ""))
     logging.warning(msg)
     try:
-        config.get_printer().lookup_object('configfile').runtime_warning(msg)
+        printer.lookup_object('configfile').runtime_warning(msg)
+    except Exception:
+        pass
+    def ready():
+        try:
+            printer.lookup_object('gcode').respond_raw('!! ' + msg)
+        except Exception:
+            logging.exception("%s: rename notice", LEGACY_PLUGIN)
+    try:
+        printer.register_event_handler('klippy:ready', ready)
     except Exception:
         pass
 
 
 def load_config(config):
-    adopt_legacy_section(config, 'kiln_ifsjacker')
+    migrate_legacy_sections(config)
     return KilnIfsJacker(config)
